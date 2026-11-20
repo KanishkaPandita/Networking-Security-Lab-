@@ -1,248 +1,270 @@
-
-# Experiment 9: Site-to-Site IPsec VPN in Tunnel Mode using strongSwan
+# Experiment 10: Perimeter Firewall & Snort IDS Deployment with pfSense
 
 ## COM-511: Network Security Lab
 
-**Project Title:** Site-to-Site IPsec VPN in Tunnel Mode using strongSwan (`swanctl`)
+**Project Title:** Perimeter Firewall and Intrusion Detection System Deployment using pfSense and Snort
 
-**Technology:** Kali Linux, Ubuntu Linux, strongSwan, IKEv2, ESP, Wireshark, tcpdump
+**Technologies:** pfSense 2.8.1, Snort IDS, Kali Linux, Metasploitable 2, Nmap, Hydra, Wireshark
 
 ---
 
 ## 1. Project Overview
 
-This experiment demonstrates the configuration and implementation of a Site-to-Site IPsec VPN in Tunnel Mode using strongSwan on two Linux virtual machines.
+This experiment demonstrates the implementation of a layered network security architecture using **pfSense as a perimeter firewall** and **Snort as a signature-based Intrusion Detection System (IDS)**.
 
-IKEv2 is used for authentication and Security Association (SA) establishment, while ESP provides encryption, integrity, and protection for network traffic.
+An isolated virtual network was created to monitor and control traffic between Kali Linux and Metasploitable 2. Firewall rules were configured to allow permitted services and block restricted connections.
 
-The experiment verifies secure communication between two private loopback addresses over an untrusted network and analyzes encrypted packets using Wireshark.
+Different security testing activities, including port scanning, FTP brute-force simulation, and ICMP traffic generation, were performed to evaluate Snort's detection capabilities.
 
 ## 2. Objectives
 
-- Configure a Site-to-Site IPsec VPN using strongSwan.
-- Understand IKEv2 negotiation and Security Associations.
-- Implement ESP encryption in Tunnel Mode.
-- Establish secure communication between two Linux gateways.
-- Capture and analyze encrypted VPN traffic using Wireshark.
-- Verify IPsec policies and states using Linux XFRM commands.
+- Deploy pfSense as a perimeter firewall.
+- Configure WAN and LAN network interfaces.
+- Implement stateful firewall rules to control network traffic.
+- Integrate Snort IDS with pfSense.
+- Detect suspicious activities using signature-based detection.
+- Simulate controlled attacks using Kali Linux.
+- Analyze firewall logs and Snort alerts.
 
 ## 3. Lab Environment
 
-| Component | Gateway A | Gateway B |
-|---|---|---|
-| Operating System | Kali Linux | Ubuntu Linux |
-| Role | Initiator | Responder |
-| Outer Interface | eth1 | ens34 |
-| Outer IP | 192.168.159.140 | 192.168.159.145 |
-| Inner IP | 10.10.1.1 | 10.20.1.1 |
-| IKE Identity | gw-a | gw-b |
-| VPN Protocol | IKEv2 | IKEv2 |
-
-### Network Topology
-
-```text
-+----------------------+          +----------------------+
-|    Gateway A         |          |     Gateway B        |
-|    Kali Linux        |          |     Ubuntu Linux     |
-|                      |          |                      |
-| Inner IP:            |          | Inner IP:            |
-| 10.10.1.1            |          | 10.20.1.1            |
-|                      |          |                      |
-| Outer IP:            |          | Outer IP:            |
-| 192.168.159.140      |          | 192.168.159.145      |
-+----------+-----------+          +-----------+----------+
-           |                                  |
-           +========== IPsec VPN =============+
-                      IKEv2 + ESP
-                    Tunnel Mode
-```
-
-## 4. Technologies Used
-
-- **Kali Linux:** Used as the initiating VPN gateway.
-- **Ubuntu Linux:** Used as the responding VPN gateway.
-- **strongSwan:** Open-source IPsec VPN implementation.
-- **IKEv2:** Establishes secure connections and negotiates keys.
-- **ESP:** Encrypts and authenticates protected network traffic.
-- **swanctl:** Manages VPN connections and Security Associations.
-- **Wireshark:** Captures and analyzes VPN packets.
-- **tcpdump:** Captures network traffic from the outer interface.
-- **Linux XFRM:** Manages IPsec states and policies in the Linux kernel.
-
-## 5. Implementation Steps
-
-### Step 1: Install Required Packages
-
-Run the following commands on both Linux gateways:
-
-```bash
-sudo apt update
-sudo apt install -y charon-systemd strongswan-swanctl tcpdump
-```
-
-### Step 2: Configure Inner Loopback IP Addresses
-
-On Gateway A:
-
-```bash
-sudo ip address add 10.10.1.1/32 dev lo
-```
-
-On Gateway B:
-
-```bash
-sudo ip address add 10.20.1.1/32 dev lo
-```
-
-### Step 3: Configure strongSwan
-
-Edit the configuration file:
-
-```bash
-sudo nano /etc/swanctl/swanctl.conf
-```
-
-Configure the VPN connection with:
-
-- IKEv2 protocol
-- AES-256-GCM encryption
-- SHA-256 PRF
-- MODP-3072 Diffie-Hellman group
-- Pre-Shared Key authentication
-- ESP encryption in Tunnel Mode
-- Local and remote traffic selectors
-
-Use the corresponding local and remote IP addresses and identities on each gateway.
-
-### Step 4: Load VPN Configuration
-
-```bash
-sudo chmod 600 /etc/swanctl/swanctl.conf
-sudo swanctl --load-all
-sudo swanctl --list-conns
-```
-
-### Step 5: Start VPN Connection
-
-On Gateway A:
-
-```bash
-sudo swanctl --initiate --child lab-net
-```
-
-### Step 6: Verify Security Associations
-
-```bash
-sudo swanctl --list-sas
-```
-
-Check whether the IKE SA is established and the CHILD SA is installed.
-
-### Step 7: Verify IPsec States and Policies
-
-```bash
-sudo ip xfrm state
-sudo ip xfrm policy
-```
-
-### Step 8: Test Secure Communication
-
-From Gateway A:
-
-```bash
-ping -I 10.10.1.1 -c 4 10.20.1.1
-```
-
-Successful replies indicate that protected traffic is passing through the VPN tunnel.
-
-### Step 9: Capture and Analyze Traffic
-
-Start packet capture on Gateway A:
-
-```bash
-sudo tcpdump -ni eth1 -w exp9-ipsec.pcap 'udp port 500 or udp port 4500 or proto 50 or proto 51'
-```
-
-Open the captured file in Wireshark and apply the display filter:
-
-```text
-isakmp || esp || ah
-```
-
-Observe IKEv2 negotiation packets and encrypted ESP traffic.
-
-## 6. Security Parameters
-
-| Parameter | Configuration |
+| Component | Configuration |
 |---|---|
-| VPN Protocol | IKEv2 |
-| Authentication | Pre-Shared Key |
-| Encryption | AES-256-GCM |
-| PRF | SHA-256 |
-| Diffie-Hellman | MODP-3072 |
-| Data Protection | ESP |
-| VPN Mode | Tunnel Mode |
-| Traffic Selectors | 10.10.1.1/32 ↔ 10.20.1.1/32 |
+| Firewall | pfSense 2.8.1 |
+| IDS | Snort |
+| Attacker | Kali Linux |
+| Target | Metasploitable 2 |
+| Network | Isolated Virtual LAN |
+| WAN IP | 10.0.2.15 |
+| LAN Gateway | 192.168.1.1 |
+| Kali IP | 192.168.1.10 |
+| Target IP | 192.168.1.20 |
+
+## 4. Network Architecture
+
+```text
++------------------------+
+|     Attacker Node      |
+|      Kali Linux        |
+|                        |
+| IP: 192.168.1.10       |
++-----------+------------+
+            |
+            | LAN Traffic
+            |
++-----------v----------------------+
+|       pfSense Firewall           |
+|       + Snort IDS                |
+|                                  |
+|       WAN: 10.0.2.15             |
+|       LAN: 192.168.1.1           |
+|                                  |
+|   Firewall Filtering             |
+|   Intrusion Detection            |
++-----------+----------------------+
+            |
+            | Protected LAN
+            |
++-----------v------------+
+|    Target Server       |
+|    Metasploitable 2    |
+|                        |
+|    IP: 192.168.1.20    |
++------------------------+
+```
+
+## 5. Technologies Used
+
+- **pfSense:** Stateful firewall used to filter and control network traffic.
+- **Snort:** Signature-based IDS used to detect suspicious network activities.
+- **Kali Linux:** Security testing workstation used to generate test traffic.
+- **Metasploitable 2:** Intentionally vulnerable machine used as the target.
+- **Nmap:** Network scanning and port discovery tool.
+- **Hydra:** Password auditing tool used for controlled FTP authentication testing.
+- **Wireshark:** Network packet capture and analysis tool.
+
+## 6. Implementation Steps
+
+### Step 1: Configure pfSense Network Interfaces
+
+- Installed pfSense in a virtual machine.
+- Assigned `em0` as the WAN interface.
+- Assigned `em1` as the LAN interface.
+- Configured the LAN IP address as `192.168.1.1/24`.
+- Enabled the LAN DHCP server.
+
+Web interface:
+
+```text
+https://192.168.1.1
+```
+
+### Step 2: Configure Kali Linux and Metasploitable 2
+
+Configured both virtual machines on the internal LAN network.
+
+**Kali Linux:**
+
+```bash
+sudo ip addr add 192.168.1.10/24 dev eth0
+sudo ip route replace default via 192.168.1.1
+```
+
+**Metasploitable 2:**
+
+```bash
+sudo ifconfig eth0 192.168.1.20 netmask 255.255.255.0
+sudo route add default gw 192.168.1.1
+```
+
+Verified connectivity using:
+
+```bash
+ping 192.168.1.1
+ping 192.168.1.20
+```
+
+### Step 3: Configure Firewall Rules
+
+Navigated to:
+
+`Firewall → Rules → LAN`
+
+Configured rules to allow HTTP, HTTPS, and DNS traffic while blocking other restricted traffic.
+
+| Priority | Action | Protocol | Destination Port |
+|---|---|---|---|
+| 1 | Pass | Any | 80, 443 to LAN Address |
+| 2 | Pass | TCP | 80 |
+| 3 | Pass | TCP | 443 |
+| 4 | Pass | UDP | 53 |
+| 5 | Block | Any | Any |
+
+**Note:** Firewall rules are evaluated from top to bottom. The anti-lockout rule protects access to the pfSense web interface. The final block rule restricts traffic that does not match an earlier pass rule.
+
+### Step 4: Install and Configure Snort
+
+1. Opened the pfSense web interface.
+2. Navigated to `System → Package Manager`.
+3. Installed the Snort package.
+4. Opened `Services → Snort`.
+5. Added a new Snort instance on the LAN interface.
+6. Enabled the available community and Emerging Threats rulesets.
+7. Enabled the detection engine and started Snort.
+
+### Step 5: Firewall Filtering Validation
+
+From Kali Linux, tested permitted and restricted services.
+
+**Test HTTP connectivity:**
+
+```bash
+curl -I http://192.168.1.20
+```
+
+Expected result: HTTP response from the target when the HTTP pass rule matches.
+
+**Test restricted Telnet traffic:**
+
+```bash
+telnet 192.168.1.20 23
+```
+
+Expected result: Connection blocked or timed out when the block rule matches.
+
+Checked blocked connection attempts under:
+
+`Status → System Logs → Firewall`
+
+### Step 6: Intrusion Detection Testing
+
+Performed controlled security testing from Kali Linux against the isolated target.
+
+**1. TCP SYN / Port Scanning**
+
+```bash
+nmap -sS -p 1-1000 192.168.1.20
+```
+
+Purpose: Identify open ports and generate traffic that can match network scanning signatures.
+
+**2. FTP Authentication Testing**
+
+```bash
+hydra -l msfadmin -P /usr/share/wordlists/rockyou.txt ftp://192.168.1.20
+```
+
+Purpose: Generate controlled FTP authentication attempts to test detection of repeated login activity.
+
+**3. ICMP Traffic Testing**
+
+```bash
+ping -c 50 -i 0.2 192.168.1.20
+```
+
+Purpose: Generate a short burst of ICMP packets to observe traffic monitoring and applicable IDS alerts.
+
+**Important:** These tests should only be performed inside the authorized isolated lab environment.
 
 ## 7. Verification and Observations
 
-The following results were observed during the experiment:
+### Firewall Verification
 
-1. IKEv2 Security Association was successfully established.
-2. CHILD SA was installed in Tunnel Mode.
-3. ESP packets were captured between the two outer IP addresses.
-4. Linux XFRM states and policies were successfully installed.
-5. ICMP communication was successful with 0% packet loss.
-6. Wireshark showed encrypted ESP packets instead of readable inner traffic.
-7. No AH packets were observed because ESP was used for encryption and integrity protection.
+- HTTP traffic was tested against the configured allow rule.
+- Restricted Telnet traffic was tested against the blocking policy.
+- Firewall logs were inspected for blocked connection attempts.
+- Source and destination IP addresses were checked in the logs.
 
-## 8. Wireshark Analysis
+### Snort IDS Verification
 
-The packet capture demonstrated three important stages:
+Navigated to:
 
-- **IKE_SA_INIT:** Negotiation of cryptographic algorithms and Diffie-Hellman key exchange.
-- **IKE_AUTH:** Authentication of both gateways and CHILD SA negotiation.
-- **ESP Traffic:** Encrypted data transmission between the VPN gateways.
+`Services → Snort → Alerts`
 
-The outer IP addresses and ESP headers remained visible, while the protected inner IP addresses and ICMP payload were encrypted.
+Observed alerts corresponding to suspicious traffic when matching signatures were enabled.
 
-## 9. Result
+| Test Activity | Expected Detection | Observation |
+|---|---|---|
+| Nmap Port Scan | Network scanning signatures | Scan-related alerts |
+| FTP Login Attempts | FTP authentication-related signatures, if enabled | Repeated login activity |
+| ICMP Traffic Burst | Applicable ICMP signatures, if enabled | ICMP traffic alerts |
+| Telnet Connection | Firewall block event | Restricted connection logged |
 
-The Site-to-Site IPsec VPN was successfully configured between Kali Linux and Ubuntu Linux using strongSwan and IKEv2. The ESP protocol provided encryption and integrity protection in Tunnel Mode. Successful ping communication and Wireshark packet analysis verified the secure transmission of network traffic.
+**Note:** Exact Snort alert names and SIDs depend on the installed ruleset and its configuration. A test activity does not guarantee a matching alert.
 
-## 10. Future Improvements
+## 8. Key Security Observations
 
-1. **Certificate-Based Authentication:** Replace PSK authentication with digital certificates for stronger identity verification.
-2. **Enable Perfect Forward Secrecy (PFS):** Configure PFS for additional protection of session keys.
-3. **Strong Encryption:** Continue using modern encryption algorithms such as AES-256-GCM.
-4. **Automatic Key Rotation:** Configure regular rekeying of IKE and CHILD Security Associations.
-5. **VPN Monitoring:** Integrate monitoring tools to detect suspicious VPN activity.
-6. **High Availability:** Configure backup VPN gateways to maintain connectivity during failures.
+1. pfSense successfully provided centralized network traffic filtering.
+2. Firewall rules controlled access to selected network services.
+3. Restricted connection attempts could be examined through firewall logs.
+4. Snort monitored LAN traffic and generated alerts for matching signatures.
+5. Nmap scanning helped evaluate network reconnaissance detection.
+6. FTP authentication testing demonstrated how repeated login attempts can be monitored.
+7. ICMP traffic generation helped evaluate network traffic monitoring.
 
-## 11. Cleanup
+## 9. Future Improvements
 
-Terminate the VPN connection:
+1. **Enable Intrusion Prevention:** Configure Snort in IPS mode where supported and carefully test blocking rules.
+2. **Update Snort Rules:** Regularly update detection signatures to identify newly discovered threats.
+3. **Centralized Log Monitoring:** Integrate pfSense and Snort logs with an ELK or Splunk SIEM platform.
+4. **Advanced Alerting:** Configure notifications for repeated authentication failures and suspicious traffic.
+5. **Network Segmentation:** Separate servers, workstations, and management systems into different VLANs.
+6. **Traffic Baseline Monitoring:** Establish normal network traffic patterns to identify unusual activities.
+7. **Regular Security Audits:** Review firewall policies and IDS alerts to improve network protection.
 
-```bash
-sudo swanctl --terminate --child lab-net
-```
+## 10. Result
 
-Remove the inner loopback address:
+Successfully deployed pfSense as a perimeter firewall and integrated Snort as an Intrusion Detection System. Firewall rules were configured to control network traffic, and controlled testing activities were performed using Kali Linux against Metasploitable 2. Firewall logs and Snort alerts were examined to evaluate network filtering and intrusion detection capabilities.
 
-```bash
-sudo ip address del 10.10.1.1/32 dev lo
-```
+## 11. Conclusion
 
-Perform the equivalent cleanup on Gateway B.
-
-## 12. Conclusion
-
-This experiment provided practical knowledge of Site-to-Site IPsec VPN configuration, IKEv2 negotiation, Security Associations, ESP encryption, and Linux XFRM policies. Packet analysis using Wireshark demonstrated how IPsec protects network communication over an untrusted network.
+This experiment provided practical knowledge of perimeter firewall deployment, stateful packet filtering, and signature-based intrusion detection. The integration of pfSense and Snort demonstrated how firewall policies and IDS monitoring work together to improve network security. The lab also provided hands-on experience in analyzing suspicious traffic and identifying potential network threats.
 
 ---
 
-**Experiment:** 09  
+**Experiment:** 10  
 **Subject:** COM-511 Network Security Lab  
-**Tools:** Kali Linux | Ubuntu | strongSwan | Wireshark | tcpdump
+**Platform:** VMware / Virtual Lab  
+**Tools:** pfSense | Snort | Kali Linux | Metasploitable 2 | Nmap | Hydra
 
-**Note:** The Pre-Shared Key has been redacted for security purposes. Never upload actual VPN credentials or private keys to a public GitHub repository.
+**Disclaimer:** All security testing was performed in an isolated and authorized virtual lab environment. Metasploitable 2 is intentionally vulnerable and should never be exposed to public networks.
